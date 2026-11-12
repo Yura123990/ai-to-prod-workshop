@@ -21,11 +21,17 @@ _client = None
 def get_client() -> OpenAI:
     global _client
     if _client is None:
-        _client = OpenAI(api_key=os.environ["GEMINI_API_KEY"], base_url=BASE_URL)
+        _client = OpenAI(
+            api_key=os.environ["GEMINI_API_KEY"],
+            base_url=BASE_URL,
+            timeout=4.0,
+            max_retries=0,
+        )
     return _client
 
 
 def chat(messages, **kwargs) -> str:
     """Надсилає повідомлення моделі й повертає текст відповіді."""
     resp = get_client().chat.completions.create(model=MODEL, messages=messages, **kwargs)
-    return resp.choices[0].message.content
+    content = resp.choices[0].message.content
+    return content if isinstance(content, str) else ""
