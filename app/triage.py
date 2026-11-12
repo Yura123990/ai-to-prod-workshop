@@ -69,11 +69,18 @@ _HUMAN_RE = re.compile(
     r".{0,40}(?:оператор|людин|менеджер)|"
     r"(?:speak|talk|connect\s+me|transfer\s+me|want|need)"
     r".{0,40}(?:human|live\s+agent|manager)|"
-    r"(?:звернуся|піду|подам|поскаржуся|скаржитимусь)"
+    r"(?:please\s+)?(?:give\s+me|put\s+me\s+through|connect|transfer)"
+    r".{0,40}(?:human|live\s+agent|manager)|"
+    r"(?:chcę|proszę|dajcie|połączcie|przełączcie)"
+    r".{0,40}(?:człowiek|konsultant|operator|manager)|"
+    r"(?:ich\s+möchte|bitte|verbinden|sprechen)"
+    r".{0,40}(?:mensch|mitarbeiter|manager|agent)|"
+    r"(?:звернуся|піду|подам|поскаржуся|скаржитимусь|погрожую|погрожує)"
     r".{0,40}(?:суд|поліці|держспожив|регулятор)|"
     r"(?:i\s+will\s+sue|take\s+.{0,10}to\s+court|"
     r"report\s+.{0,20}(?:police|regulator)|"
-    r"file\s+.{0,20}complaint|contact\s+.{0,20}regulator)",
+    r"file\s+.{0,20}complaint|contact\s+.{0,20}"
+    r"(?:regulator|consumer\s+protection|ombudsman))",
     re.IGNORECASE,
 )
 _THANKS_RE = re.compile(r"дякую|thank(?:s|\s+you)|dziękuję|danke", re.IGNORECASE)
@@ -224,10 +231,16 @@ def _fallback(message: str) -> dict:
                   r"overdue|late|delay|hasn't\s+shipped|has\s+not\s+arrived",
                   text)
     )
-    long_delay = delayed and any(
-        int(days) > 7
-        for days in re.findall(r"(\d{1,3})\s*(?:днів|дні|дня|день|days?|day)", text)
-    ) or bool(re.search(r"понад\s+7\s+дн|more\s+than\s+7\s+days|over\s+7\s+days", text))
+    long_delay = bool(
+        delayed
+        and any(
+            int(days) > 7
+            for days in re.findall(
+                r"(\d{1,3})\s*(?:днів|дні|дня|день|days?|day)", text
+            )
+        )
+        or re.search(r"понад\s+7\s+дн|more\s+than\s+7\s+days|over\s+7\s+days", text)
+    )
     cannot_pay = bool(
         re.search(r"не\s+можу.{0,20}оплат|can't.{0,15}pay|cannot.{0,15}pay", text)
     )
