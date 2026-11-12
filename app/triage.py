@@ -315,6 +315,7 @@ def _normalize(answer: str, message: str, fallback: dict) -> dict:
     priority = parsed.get("priority")
     if isinstance(priority, str) and priority in PRIORITIES:
         result["priority"] = priority
+    language = parsed.get("language")
     if (
         isinstance(language, str)
         and re.fullmatch(r"[a-z]{2}", language)
