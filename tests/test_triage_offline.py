@@ -109,3 +109,32 @@ def test_api_failure_uses_safe_fallback(fake_llm):
     assert out["category"] == "payment"
     assert out["priority"] == "urgent"
     assert out["needs_human"] is True
+
+
+@pytest.mark.parametrize(
+    ("message", "category", "priority", "needs_human"),
+    [
+        ("Мені двічі списали кошти за замовлення.", "payment", "high", False),
+        ("Хочу повернути навушники, чек зберіг.", "returns", "medium", False),
+        ("Дякую за швидку доставку, все супер!", "other", "low", False),
+        (
+            "Посилка затримується вже 3 дні. Оператор: Очікуйте, будь ласка.",
+            "delivery",
+            "medium",
+            False,
+        ),
+        (
+            "Дайте мені живого оператора, посилка не прийшла.",
+            "delivery",
+            "medium",
+            True,
+        ),
+    ],
+)
+def test_fallback_classification_rules(message, category, priority, needs_human):
+    out = triage_module._fallback(message)
+    assert (out["category"], out["priority"], out["needs_human"]) == (
+        category,
+        priority,
+        needs_human,
+    )

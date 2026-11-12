@@ -57,11 +57,24 @@ _FRAUD_RE = re.compile(
     re.IGNORECASE,
 )
 _HUMAN_RE = re.compile(
-    r"оператор|жив.{0,10}(?:людин|оператор)|менеджер|людину|"
-    r"human|live\s+agent|customer\s+service\s+agent|manager|"
-    r"суд|поліці|держспожив|регулятор|lawyer|court|police|"
-    r"consumer\s+protection|regulator|rzecznik|sąd|policj|"
-    r"anwalt|gericht|polizei",
+    r"(?:дайте|покличте|з'єднайте|переключіть|передайте|"
+    r"хочу\s+поговорити|потрібен|потрібна|потрібно\s+поговорити)"
+    r".{0,40}(?:оператор|людин|менеджер)|"
+    r"(?:speak|talk|connect\s+me|transfer\s+me|want|need)"
+    r".{0,40}(?:human|live\s+agent|manager)|"
+    r"(?:звернуся|піду|подам|поскаржуся|скаржитимусь)"
+    r".{0,40}(?:суд|поліці|держспожив|регулятор)|"
+    r"(?:i\s+will\s+sue|take\s+.{0,10}to\s+court|"
+    r"report\s+.{0,20}(?:police|regulator)|"
+    r"file\s+.{0,20}complaint|contact\s+.{0,20}regulator)",
+    re.IGNORECASE,
+)
+_THANKS_RE = re.compile(r"дякую|thank(?:s|\s+you)|dziękuję|danke", re.IGNORECASE)
+_ISSUE_RE = re.compile(
+    r"не|нема|немає|проблем|помилк|затрим|загуб|поверн|брак|"
+    r"не\s+працю|can't|cannot|not\s+working|lost|late|delay|"
+    r"refund|charged|broken|damaged|please\s+help|підкажіть|"
+    r"запит|питання|what|where|when|how|czy|bitte",
     re.IGNORECASE,
 )
 _DELIVERY_RE = re.compile(
@@ -73,7 +86,7 @@ _DELIVERY_RE = re.compile(
     re.IGNORECASE,
 )
 _PAYMENT_RE = re.compile(
-    r"оплат|платіж|списан|кош[тт]|грош|картк|чек|промокод|"
+    r"оплат|платіж|спис|кош[тт]|грош|картк|чек|промокод|"
     r"поверн.{0,20}(?:кош|грош)|refund|payment|charged|charge|"
     r"billing|invoice|double[- ]charged|charged\s+twice|"
     r"płatno|zwrot\s+pieni|zahlung|erstattung|abgebucht",
@@ -159,12 +172,19 @@ def _fallback(message: str) -> dict:
     urgent = bool(_SAFETY_RE.search(text) or _FRAUD_RE.search(text))
     has_delivery = bool(_DELIVERY_RE.search(text))
 
-    if urgent and _SAFETY_RE.search(text):
+    if _THANKS_RE.search(text) and not _ISSUE_RE.search(text):
+        category = "other"
+    elif urgent and _SAFETY_RE.search(text):
         category = "returns"
-    elif _PAYMENT_RE.search(text) or _FRAUD_RE.search(text):
+    elif _FRAUD_RE.search(text) or re.search(
+        r"поверн.{0,20}(?:кош|грош)|refund|money\s+back|zwrot\s+pieni|erstattung",
+        text,
+    ):
         category = "payment"
     elif _RETURN_RE.search(text):
         category = "returns"
+    elif _PAYMENT_RE.search(text):
+        category = "payment"
     elif _TECHNICAL_RE.search(text):
         category = "technical"
     elif has_delivery:
@@ -186,9 +206,7 @@ def _fallback(message: str) -> dict:
     cannot_pay = bool(
         re.search(r"не\s+можу.{0,20}оплат|can't.{0,15}pay|cannot.{0,15}pay", text)
     )
-    high = bool(_HARD_HIGH_RE.search(text) or long_delay or (has_delivery and re.search(
-        r"вже\s+\d+\s+дн|more\s+than\s+7\s+days|over\s+7\s+days", text
-    )))
+    high = bool(_HARD_HIGH_RE.search(text) or long_delay)
 
     if urgent:
         priority = "urgent"
