@@ -55,7 +55,10 @@ _FRAUD_RE = re.compile(
     r"я\s+цього\s+не\s+(?:робив|замовляв|оплачував)|несанкціон|шахра|"
     r"вкрал|зламал.{0,20}акаунт|fraud|unauthori[sz]ed|"
     r"нічого\s+не\s+замовляв|не\s+маю.{0,20}акаунт|"
+    r"не\s+впізнаю.{0,20}(?:списан|платіж)|"
+    r"без\s+моего\s+ведома|взлом.{0,20}аккаунт|"
     r"i\s+did\s+not\s+(?:make|authorize|place)|never\s+ordered|"
+    r"don't\s+recognize.{0,20}(?:charge|payment)|"
     r"no\s+account|not\s+my\s+purchase|"
     r"card\s+(?:was\s+)?stolen",
     re.IGNORECASE,
@@ -125,10 +128,14 @@ _HARD_HIGH_RE = re.compile(
     r"гроші\s+списал.{0,50}(?:замовлен.{0,20}(?:нема|скасован)|"
     r"не\s+існує)|(?:замовлен|order).{0,30}(?:скасован|cancelled|canceled)"
     r".{0,50}(?:списал|оплат|charged|paid)|"
+    r"(?:оплат|списал|charged|paid).{0,50}(?:замовлен.{0,20}(?:нема|"
+    r"не\s+існує)|order.{0,20}(?:missing|not\s+found|never\s+created))|"
     r"не\s+можу.{0,30}(?:увійти|зайти|оформити|оплатити)|"
     r"can't.{0,25}(?:log\s*in|sign\s*in|checkout|place\s+(?:an?\s+)?order|pay)|"
     r"cannot.{0,25}(?:log\s*in|sign\s*in|checkout|place\s+(?:an?\s+)?order|pay)|"
     r"не\s+виходить.{0,25}(?:увійти|зайти|оформити|оплатити)|"
+    r"nie\s+mogę.{0,30}(?:zalogować|złożyć|zapłacić)|"
+    r"kann.{0,20}nicht.{0,20}(?:anmelden|bestellen|bezahlen)|"
     r"lost\s+(?:the\s+)?(?:parcel|package)|загуб.{0,15}посил",
     re.IGNORECASE,
 )
@@ -220,7 +227,7 @@ def _fallback(message: str) -> dict:
     long_delay = delayed and any(
         int(days) > 7
         for days in re.findall(r"(\d{1,3})\s*(?:днів|дні|дня|день|days?|day)", text)
-    )
+    ) or bool(re.search(r"понад\s+7\s+дн|more\s+than\s+7\s+days|over\s+7\s+days", text))
     cannot_pay = bool(
         re.search(r"не\s+можу.{0,20}оплат|can't.{0,15}pay|cannot.{0,15}pay", text)
     )
@@ -295,9 +302,12 @@ def _normalize(answer: str, message: str, fallback: dict) -> dict:
     priority = parsed.get("priority")
     if isinstance(priority, str) and priority in PRIORITIES:
         result["priority"] = priority
-    if isinstance(language, str) and re.fullmatch(r"[a-z]{2}", language):
+    if (
+        isinstance(language, str)
+        and re.fullmatch(r"[a-z]{2}", language)
+        and not _has_language_evidence(message)
+    ):
         result["language"] = language
-    result["language"] = _detect_language(message)
 
     summary = parsed.get("summary")
     injection = bool(_INJECTION_RE.search(message))
