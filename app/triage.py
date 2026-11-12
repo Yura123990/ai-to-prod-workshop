@@ -38,7 +38,11 @@ needs_human=true лише для urgent, прямого прохання про 
 _INJECTION_RE = re.compile(
     r"\b(?:ignore|ігноруй|ігнорувати|забудь|forget|disregard|override|"
     r"ти\s+тепер|you\s+are\s+now|dan|developer\s+mode|"
-    r"виведи.{0,30}(?:промпт|інструкц)|reveal.{0,30}(?:prompt|instruction))\b",
+    r"виведи.{0,30}(?:промпт|інструкц)|reveal.{0,30}(?:prompt|instruction)|"
+    r"(?:write|put|include|insert|copy|repeat|say|напиши|встав|додай|"
+    r"скопіюй|повтори).{0,80}(?:summary|сумар|резюме|опис|слово|word)|"
+    r"(?:summary|сумар|резюме|опис).{0,40}(?:write|put|include|"
+    r"insert|copy|repeat|say|напиши|встав|додай|скопіюй|повтори))\b",
     re.IGNORECASE,
 )
 _SAFETY_RE = re.compile(
@@ -71,8 +75,8 @@ _HUMAN_RE = re.compile(
 )
 _THANKS_RE = re.compile(r"дякую|thank(?:s|\s+you)|dziękuję|danke", re.IGNORECASE)
 _ISSUE_RE = re.compile(
-    r"не|нема|немає|проблем|помилк|затрим|загуб|поверн|брак|"
-    r"не\s+працю|can't|cannot|not\s+working|lost|late|delay|"
+    r"\bне\b|нема|немає|проблем|помилк|затрим|загуб|поверн|брак|"
+    r"can't|cannot|not\s+working|lost|late|delay|"
     r"refund|charged|broken|damaged|please\s+help|підкажіть|"
     r"запит|питання|what|where|when|how|czy|bitte",
     re.IGNORECASE,
@@ -167,6 +171,20 @@ def _detect_language(text: str) -> str:
     return "uk"
 
 
+def _has_language_evidence(text: str) -> bool:
+    lowered = text.lower()
+    return bool(
+        re.search(r"[а-яіїєґ]", lowered)
+        or re.search(r"[ąćęłńóśźżäöüß]", lowered)
+        or re.search(
+            r"\b(?:dzień|chcę|zwrócić|zamówienie|przesyłka|proszę|telefon|"
+            r"ich|bitte|möchte|bestellung|lieferung|gerät|rechnung)\b",
+            lowered,
+        )
+        or not re.search(r"[a-z]", lowered)
+    )
+
+
 def _fallback(message: str) -> dict:
     text = message.lower()
     urgent = bool(_SAFETY_RE.search(text) or _FRAUD_RE.search(text))
@@ -249,7 +267,9 @@ def _parse_answer(answer) -> dict | None:
 
 
 def _is_ukrainian_summary(summary: str) -> bool:
-    if not re.search(r"[а-яіїєґ]", summary, re.IGNORECASE):
+    cyrillic = len(re.findall(r"[а-яіїєґ]", summary, re.IGNORECASE))
+    latin = len(re.findall(r"[a-z]", summary, re.IGNORECASE))
+    if not cyrillic or cyrillic < 0.6 * (cyrillic + latin):
         return False
     if re.search(r"[ыэъё]", summary, re.IGNORECASE):
         return False
@@ -275,6 +295,8 @@ def _normalize(answer: str, message: str, fallback: dict) -> dict:
     priority = parsed.get("priority")
     if isinstance(priority, str) and priority in PRIORITIES:
         result["priority"] = priority
+    if isinstance(language, str) and re.fullmatch(r"[a-z]{2}", language):
+        result["language"] = language
     result["language"] = _detect_language(message)
 
     summary = parsed.get("summary")
